@@ -7,7 +7,7 @@ from datetime import datetime
 
 async def export_users_excel():
     """Export all user data to an Excel file."""
-    file_path = f"export_users_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    file_path = f"git rm --cached export_users_*.xlsx"
     wb = Workbook()
     ws = wb.active
     ws.title = "Users"

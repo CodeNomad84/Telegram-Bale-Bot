@@ -209,6 +209,7 @@ async def startup():
     print("[DEBUG] Initializing database...")
     await init_db()
     print("[DEBUG] Database initialized.")
+    start_scheduler()
 
     # تست دسترسی به کانال (اختیاری)
     if CHANNEL_ID:

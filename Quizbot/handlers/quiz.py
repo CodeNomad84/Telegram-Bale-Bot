@@ -7,6 +7,8 @@ from data.content import QUESTIONS
 from database.db import get_user, update_user
 from handlers.states import STATE_QUIZ
 from keyboards.builders import choice_keyboard
+from utils.helpers import to_persian_digits
+
 
 LABELS = ["الف", "ب", "ج", "د", "ه"]
 
@@ -20,7 +22,7 @@ async def send_question(user_id, index):
     question = QUESTIONS[index]
     options = question["options"]
     options_text = "\n".join(f"{LABELS[i]}) {opt['text']}" for i, opt in enumerate(options))
-    header = f"سؤال {index + 1} از {len(QUESTIONS)}\n\n"
+    header = f"سؤال {to_persian_digits(index + 1)} از {to_persian_digits(len(QUESTIONS))}\n\n"
     full_text = header + question["text"] + "\n\n" + options_text + "\n\n👇 یک گزینه را انتخاب کنید:"
     labels = LABELS[:len(options)]
     await bot.send_message(

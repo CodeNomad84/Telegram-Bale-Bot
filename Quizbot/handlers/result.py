@@ -91,13 +91,13 @@ async def send_result(user_id):
     image_path = PICS_DIR / image_name if image_name else None
     if image_path and image_path.exists():
         with open(image_path, "rb") as photo:
-            await bot.send_photo(user_id, photo=photo, caption=result.get("nickname", ""))
+            await bot.send_photo(user_id, photo=photo, caption=result.get("description", ""))
     else:
         # fallback به تصویر اصلی
         image_path = PICS_DIR / base_image if base_image else None
         if image_path and image_path.exists():
             with open(image_path, "rb") as photo:
-                await bot.send_photo(user_id, photo=photo, caption=result.get("nickname", ""))
+                await bot.send_photo(user_id, photo=photo, caption=result.get("description", ""))
 
     # 3) Product suggestion
     products_text = build_products(user["product_keys"])
