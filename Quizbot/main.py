@@ -2,6 +2,7 @@
 
 import asyncio
 import traceback
+from scheduler import start_scheduler
 
 from bot_instance import bot
 from config import ADMIN_IDS, CHANNEL_ID, FALLBACK_TEXT, NOT_JOINED_TEXT

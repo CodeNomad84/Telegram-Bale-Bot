@@ -67,7 +67,7 @@ async def send_result(user_id):
     )
 
     # 1) Personality type description
-    await bot.send_message(user_id, text=build_description(code))
+    # await bot.send_message(user_id, text=build_description(code))
 
     # 2) Personality type image based on code AND gender (role)
     base_image = RESULT_IMAGES.get(code, "")
@@ -91,13 +91,17 @@ async def send_result(user_id):
     image_path = PICS_DIR / image_name if image_name else None
     if image_path and image_path.exists():
         with open(image_path, "rb") as photo:
-            await bot.send_photo(user_id, photo=photo, caption=result.get("description", ""))
+            # caption = f"{result.get('title', '')}\n\n{result.get('description', '')}"
+            caption = build_description(code)
+            await bot.send_photo(user_id, photo=photo, caption=caption)
     else:
         # fallback به تصویر اصلی
         image_path = PICS_DIR / base_image if base_image else None
         if image_path and image_path.exists():
             with open(image_path, "rb") as photo:
-                await bot.send_photo(user_id, photo=photo, caption=result.get("description", ""))
+                # caption = f"{result.get('title', '')}\n\n{result.get('description', '')}"
+                caption = build_description(code)
+                await bot.send_photo(user_id, photo=photo, caption=caption)
 
     # 3) Product suggestion
     products_text = build_products(user["product_keys"])
