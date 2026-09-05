@@ -39,8 +39,7 @@ LOG_FILE = BASE_DIR / "admin_logs.txt"   # fallback if DB logging fails
 
 # ---------- Campaign copy ----------
 CAMPAIGN_TITLE = "ربات مرحله دو تربیت فرزند، تربیت بدون اشک"
-CAMPAIGN_HEADLINE = "مجرد یا متاهل فرقی نداره*، بیاید بهتون بگیم سبک تربیتی شما چیه*"
-
+CAMPAIGN_HEADLINE = "*مجرد  یا متاهل فرقی نداره* ، بیاید بهتون بگیم سبک تربیتی شما چیه!"
 WELCOME_TEXT = (
     f"{CAMPAIGN_HEADLINE}!\n\n"
     f"به «{CAMPAIGN_TITLE}» خوش آمدید 😊.\n"

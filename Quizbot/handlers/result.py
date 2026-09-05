@@ -25,6 +25,7 @@ def compute_code(answers):
 def invite_link(user_id):
     """Deep link that credits this user as the inviter."""
     return f"https://ble.ir/{BOT_USERNAME.lstrip('@')}?start={user_id}"
+    
 
 
 def build_description(code):
@@ -111,13 +112,23 @@ async def send_result(user_id):
     # Referral invitation
     link = invite_link(user_id)
     invite_text = (
-        "این آزمون را برای دوستانت هم بفرست تا سبک تربیتی خودشان را بشناسند 💌\n\n"
+        "این بازی رو برای دوستانت هم بفرست تا سبک تربیتی خودشون رو حدس بزنن 💌\n\n"
         f"{link}"
     )
     if INVITE_IMAGE.exists():
         with open(INVITE_IMAGE, "rb") as photo:
             await bot.send_photo(
-                user_id, photo=photo, caption=invite_text, reply_markup=finish_keyboard(link)
+                user_id, photo=photo, caption=invite_text
             )
     else:
-        await bot.send_message(user_id, text=invite_text, reply_markup=finish_keyboard(link))
+        await bot.send_message(user_id, text=invite_text)
+# 4) Prize message with keyboard (copy link and restart)
+    prize_text = (
+        "اگر میخوای تو برنده این قسمت باشی، دوستان بیشتری رو به این بازی دعوت کن 💌\n"
+        "همراه با جوایز ویژه 😍🎁 \n"
+        "*نفر اول ۳ میلیون*\n"
+        "*نفر دوم ۲ میلیون*\n"
+        "*نفر سوم ۱ میلیون*\n"
+        "*نفر چهارم کتاب تربیت بر مدار فطرت*\n"
+        "*نفر پنجم یک دوره ارزنده رایگان*")
+    await bot.send_message(user_id, text=prize_text, reply_markup=finish_keyboard(link))
