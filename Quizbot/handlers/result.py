@@ -112,23 +112,30 @@ async def send_result(user_id):
     # Referral invitation
     link = invite_link(user_id)
     invite_text = (
-        "این بازی رو برای دوستانت هم بفرست تا سبک تربیتی خودشون رو حدس بزنن 💌\n\n"
+        "🧩 مجرد  یا متاهل فرقی نداره، بیاید بهتون بگیم سبک تربیتی شما چیه!!\n\n\n"
+"اگر میخوای تو برنده این قسمت باشی، دوستان بیشتری رو به این بازی دعوت کن 💌\n"
+"همراه با جوایز ویژه 😍🎁\n"
+"*نفر اول ۳ میلیون*\n"
+"*نفر دوم ۲ میلیون*\n"
+"*نفر سوم ۱ میلیون*\n"
+"*نفر چهارم کتاب تربیت بر مدار فطرت*\n"
+"*نفر پنجم یک دوره ارزنده رایگان*\n\n"
         f"{link}"
     )
     if INVITE_IMAGE.exists():
         with open(INVITE_IMAGE, "rb") as photo:
             await bot.send_photo(
-                user_id, photo=photo, caption=invite_text
+                user_id, photo=photo, caption=invite_text, reply_markup=finish_keyboard(link)
             )
     else:
-        await bot.send_message(user_id, text=invite_text)
-# 4) Prize message with keyboard (copy link and restart)
-    prize_text = (
-        "اگر میخوای تو برنده این قسمت باشی، دوستان بیشتری رو به این بازی دعوت کن 💌\n"
-        "همراه با جوایز ویژه 😍🎁 \n"
-        "*نفر اول ۳ میلیون*\n"
-        "*نفر دوم ۲ میلیون*\n"
-        "*نفر سوم ۱ میلیون*\n"
-        "*نفر چهارم کتاب تربیت بر مدار فطرت*\n"
-        "*نفر پنجم یک دوره ارزنده رایگان*")
-    await bot.send_message(user_id, text=prize_text, reply_markup=finish_keyboard(link))
+        await bot.send_message(user_id, text=invite_text, reply_markup=finish_keyboard(link))
+# # 4) Prize message with keyboard (copy link and restart)
+#     prize_text = (
+#         "اگر میخوای تو برنده این قسمت باشی، دوستان بیشتری رو به این بازی دعوت کن 💌\n"
+#         "همراه با جوایز ویژه 😍🎁 \n"
+#         "*نفر اول ۳ میلیون*\n"
+#         "*نفر دوم ۲ میلیون*\n"
+#         "*نفر سوم ۱ میلیون*\n"
+#         "*نفر چهارم کتاب تربیت بر مدار فطرت*\n"
+#         "*نفر پنجم یک دوره ارزنده رایگان*")
+#     await bot.send_message(user_id, text=prize_text, reply_markup=finish_keyboard(link))
