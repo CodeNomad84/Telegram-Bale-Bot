@@ -59,6 +59,16 @@ async def handle_intro_answer(user_id, index, option_index):
         await send_intro_question(user_id, 1)
         return True
 
+    
+    # اگر سوال دوم (جنسیت فرزند) بود و کاربر «بدون فرزند» را انتخاب کرد،
+    # مستقیماً به پرسشنامه اصلی برود
+    if index == 1 and (fields.get("children") or user.get("children")) == "none":
+        from handlers.quiz import start_quiz
+        await bot.send_message(user_id, "✅ پاسخ شما ثبت شد.")
+        await asyncio.sleep(0.3)
+        await start_quiz(user_id)
+        return True
+
     from handlers.quiz import start_quiz
     # ارسال پیام تأیید قبل از شروع آزمون
     await bot.send_message(user_id, "✅ پاسخ شما ثبت شد.")
