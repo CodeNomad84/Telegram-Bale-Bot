@@ -1,54 +1,109 @@
+"""Lottery functions and prize message sending."""
+
 import asyncio
-import re
+import random
 import aiosqlite
+
 from config import DB_PATH
 from database.db import log_admin_action
 from bot_instance import bot
 
+# پیش‌فرض تعداد برندگان برای هر دسته
+DEFAULT_COUNTS = {
+    "top_inviters": 5,
+    "random_participants": 10,
+    "random_inviters": 5,
+}
 
-async def prize_send(admin_id, criteria, message):
-    """Send prize to users matching the criteria."""
-    user_ids = await get_users_by_criteria(criteria)
+CATEGORY_NAMES = {
+    "top_inviters": "🏆 بالاترین دعوت‌کنندگان",
+    "random_participants": "🎯 شرکت‌کنندگان تصادفی",
+    "random_inviters": "🎁 دعوت‌کنندگان تصادفی",
+}
+
+
+async def lottery_top_inviters(count):
+    """N کاربر با بیشترین تعداد دعوت."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT inviter_id FROM invites ORDER BY count DESC LIMIT ?",
+            (count,)
+        )
+        return [row[0] for row in await cursor.fetchall()]
+
+
+async def lottery_random_participants(count):
+    """N کاربر تصادفی از بین کسانی که آزمون را کامل کرده‌اند."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT user_id FROM users WHERE state = 'done' ORDER BY RANDOM() LIMIT ?",
+            (count,)
+        )
+        return [row[0] for row in await cursor.fetchall()]
+
+
+async def lottery_random_inviters(count):
+    """N کاربر تصادفی از بین کسانی که حداقل یک دعوت داشته‌اند."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT inviter_id FROM invites ORDER BY RANDOM() LIMIT ?",
+            (count,)
+        )
+        return [row[0] for row in await cursor.fetchall()]
+
+
+async def run_lottery(category, count):
+    """اجرای قرعه‌کشی بر اساس دسته."""
+    if category == "top_inviters":
+        return await lottery_top_inviters(count)
+    elif category == "random_participants":
+        return await lottery_random_participants(count)
+    elif category == "random_inviters":
+        return await lottery_random_inviters(count)
+    return []
+
+
+async def get_users_info(user_ids):
+    """اطلاعات نمایشی کاربران بر اساس شناسه‌ها."""
     if not user_ids:
-        await bot.send_message(admin_id, "هیچ کاربری با این معیارها یافت نشد.")
-        return
+        return []
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        placeholders = ",".join("?" * len(user_ids))
+        cursor = await db.execute(
+            f"SELECT user_id, username, display_name, phone FROM users WHERE user_id IN ({placeholders})",
+            tuple(user_ids)
+        )
+        return [dict(row) async for row in cursor]
 
-    total = len(user_ids)
+
+async def format_winners_list(user_ids, category):
+    """ساخت متن نمایش برندگان."""
+    user_info = await get_users_info(user_ids)
+    lines = [
+        f"🎲 نتیجه قرعه‌کشی — {CATEGORY_NAMES.get(category, category)}",
+        f"تعداد: {len(user_ids)} نفر\n"
+    ]
+    for i, row in enumerate(user_info, 1):
+        name = row.get("display_name") or row.get("username") or f"کاربر {row['user_id']}"
+        line = f"{i}. {name}"
+        if row.get("phone"):
+            line += f" — 📞 {row['phone']}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+async def send_prize_message(admin_id, user_ids, message):
+    """ارسال پیام جایزه به لیست کاربران."""
     sent = 0
+    failed = 0
     for uid in user_ids:
         try:
-            await bot.send_message(uid, f"🎁 **پیام جایزه**\n\n{message}")
+            await bot.send_message(uid, f"🎁 پیام جایزه\n\n{message}")
             sent += 1
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Prize] Failed to send to {uid}: {e}")
+            failed += 1
         await asyncio.sleep(0.05)
-
-    await log_admin_action(admin_id, "prize", f"sent to {sent} users (criteria: {criteria})")
-    await bot.send_message(admin_id, f"جایزه به {sent} کاربر ارسال شد.")
-
-
-async def get_users_by_criteria(criteria):
-    """Return list of user_ids matching the criteria string."""
-    # Example: "result_code=1" or "invites>=5"
-    match = re.match(r"(\w+)\s*([=<>]+)\s*(\d+)", criteria.strip())
-    if not match:
-        return []
-
-    field, op, value = match.groups()
-    value = int(value)
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        if field == "result_code":
-            cursor = await db.execute(
-                f"SELECT user_id FROM users WHERE result_code {op} ?", (value,)
-            )
-        elif field == "invites":
-            # Get users with invite count >= value
-            cursor = await db.execute(
-                f"SELECT inviter_id FROM invites WHERE count {op} ?", (value,)
-            )
-            rows = await cursor.fetchall()
-            return [row[0] for row in rows]
-        else:
-            return []
-        return [row[0] for row in await cursor.fetchall()]
+    await log_admin_action(admin_id, "prize_message", f"sent: {sent}, failed: {failed}")
+    return sent, failed

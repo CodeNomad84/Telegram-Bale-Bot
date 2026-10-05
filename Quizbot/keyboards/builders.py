@@ -80,3 +80,40 @@ def admin_cancel_keyboard():
     return InlineKeyboard(
         [{"text": "❌ لغو عملیات", "callback_data": "admin:cancel"}]
     )
+
+# ---------- Prize Menu Keyboards ----------
+def prize_menu_keyboard():
+    """منوی اصلی جوایز: دو گزینه قرعه‌کشی و ارسال پیام."""
+    return InlineKeyboard(
+        [{"text": "🎲 قرعه‌کشی", "callback_data": "admin:lottery"}],
+        [{"text": "📨 ارسال پیام جایزه", "callback_data": "admin:prize_message"}],
+        [{"text": "🔙 بازگشت", "callback_data": "admin:main"}],
+    )
+
+
+def lottery_type_keyboard():
+    """انتخاب نوع قرعه‌کشی."""
+    return InlineKeyboard(
+        [{"text": "🏆 بالاترین دعوت‌کنندگان", "callback_data": "admin:lottery:top_inviters"}],
+        [{"text": "🎯 قرعه‌کشی تصادفی شرکت‌کنندگان", "callback_data": "admin:lottery:random_participants"}],
+        [{"text": "🎁 قرعه‌کشی تصادفی دعوت‌کنندگان", "callback_data": "admin:lottery:random_inviters"}],
+        [{"text": "❌ لغو", "callback_data": "admin:cancel"}],
+    )
+
+
+def lottery_count_keyboard():
+    """دکمه تأیید تعداد پیش‌فرض."""
+    return InlineKeyboard(
+        [{"text": "✅ استفاده از تعداد پیش‌فرض", "callback_data": "admin:lottery_use_default"}],
+        [{"text": "❌ لغو", "callback_data": "admin:cancel"}],
+    )
+
+
+def prize_category_keyboard():
+    """انتخاب دسته برای ارسال پیام جایزه."""
+    return InlineKeyboard(
+        [{"text": "🏆 بالاترین دعوت‌کنندگان", "callback_data": "admin:prize_cat:top_inviters"}],
+        [{"text": "🎯 شرکت‌کنندگان تصادفی", "callback_data": "admin:prize_cat:random_participants"}],
+        [{"text": "🎁 دعوت‌کنندگان تصادفی", "callback_data": "admin:prize_cat:random_inviters"}],
+        [{"text": "❌ لغو", "callback_data": "admin:cancel"}],
+    )
