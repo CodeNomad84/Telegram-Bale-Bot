@@ -1,6 +1,5 @@
 """یک schema یکدست؛ همهٔ اطلاعات کاربر در جدول users."""
 
-import csv
 import json
 from datetime import datetime
 
@@ -155,23 +154,6 @@ async def get_invite_count(inviter_id):
         ) as cursor:
             row = await cursor.fetchone()
     return row[0] if row else 0
-
-
-async def export_users_csv(path):
-    """پشتیبان متنی برای قرعه‌کشی و پیام‌های گروهی."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """SELECT user_id, username, display_name, phone, role, gender, children,
-                      result_code, result_title, state, updated_at
-               FROM users ORDER BY updated_at DESC"""
-        ) as cursor:
-            rows = [dict(row) async for row in cursor]
-    with open(path, "w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=rows[0].keys() if rows else ["user_id"])
-        writer.writeheader()
-        writer.writerows(rows)
-    return len(rows)
 
 
 async def get_all_user_ids():

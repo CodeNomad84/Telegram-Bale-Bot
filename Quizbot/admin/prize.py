@@ -1,7 +1,6 @@
 """Lottery functions and prize message sending."""
 
 import asyncio
-import random
 import aiosqlite
 
 from config import DB_PATH

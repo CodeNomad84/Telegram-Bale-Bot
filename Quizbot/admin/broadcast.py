@@ -20,11 +20,3 @@ async def broadcast_send(admin_id, text):
 
     await log_admin_action(admin_id, "broadcast", f"sent to {sent} users, failed {failed}")
     return sent, failed
-
-
-async def get_all_user_ids():
-    import aiosqlite
-    from config import DB_PATH
-    async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute("SELECT user_id FROM users")
-        return [row[0] for row in await cursor.fetchall()]
