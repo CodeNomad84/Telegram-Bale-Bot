@@ -14,6 +14,7 @@ from keyboards.builders import (
     lottery_count_keyboard,
     prize_category_keyboard,
 )
+
 from admin.stats import get_stats_text
 from admin.broadcast import broadcast_send
 from admin.export import export_users_excel
@@ -314,7 +315,7 @@ async def admin_message(message):
         await _perform_lottery(user_id, category, count)
         return
 
-    # ---------- پیام جایزه ----------
+        # ---------- پیام جایزه ----------
     if action == "prize_message_text":
         text = (message.text or "").strip()
         if not text:
@@ -328,12 +329,13 @@ async def admin_message(message):
             return
 
         await bot.send_message(user_id, "در حال ارسال جایزه...")
-        sent, failed = await send_prize_message(user_id, winners, text)
+        sent, failed = await send_prize_message(user_id, winners, text, category)
         await bot.send_message(
             user_id,
             f"✅ پیام جایزه ارسال شد.\n"
             f"دسته: {CATEGORY_NAMES.get(category, category)}\n"
-            f"موفق: {sent}\nناموفق: {failed}",
+            f"موفق: {sent}\nناموفق: {failed}\n\n"
+            f"ℹ️ برندگان می‌توانند اطلاعات خود را برای شما ارسال کنند.",
             reply_markup=admin_back_keyboard()
         )
         ADMIN_STATE.pop(user_id, None)

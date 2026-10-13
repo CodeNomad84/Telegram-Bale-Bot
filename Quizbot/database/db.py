@@ -44,6 +44,14 @@ CREATE TABLE IF NOT EXISTS admin_logs (
     details    TEXT,
     created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS lottery_winners (
+    user_id           INTEGER PRIMARY KEY,
+    category          TEXT NOT NULL,
+    prize_sent_at     TEXT NOT NULL,
+    info_text         TEXT,
+    info_collected_at TEXT
+);
 """
 
 
@@ -189,5 +197,58 @@ async def get_admin_logs(limit=100):
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?", (limit,)
+        ) as cursor:
+            return [dict(row) async for row in cursor]
+
+# ----- Lottery Winners -----
+async def register_lottery_winner(user_id, category):
+    """ثبت برنده در جدول lottery_winners."""
+    now = _now()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO lottery_winners (user_id, category, prize_sent_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT(user_id) DO UPDATE SET
+                   category = excluded.category,
+                   prize_sent_at = excluded.prize_sent_at,
+                   info_text = NULL,
+                   info_collected_at = NULL""",
+            (user_id, category, now),
+        )
+        await db.commit()
+
+
+async def get_lottery_winner(user_id):
+    """اطلاعات یک برنده را برمی‌گرداند یا None."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM lottery_winners WHERE user_id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def save_winner_info(user_id, info_text):
+    """ذخیره اطلاعات ارسالی برنده."""
+    now = _now()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE lottery_winners SET info_text = ?, info_collected_at = ? WHERE user_id = ?",
+            (info_text, now, user_id),
+        )
+        await db.commit()
+
+
+async def get_all_lottery_winners():
+    """دریافت همه برندگان برای خروجی اکسل."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT lw.user_id, u.username, u.display_name, u.phone,
+                      lw.category, lw.prize_sent_at, lw.info_text, lw.info_collected_at
+               FROM lottery_winners lw
+               LEFT JOIN users u ON u.user_id = lw.user_id
+               ORDER BY lw.prize_sent_at DESC"""
         ) as cursor:
             return [dict(row) async for row in cursor]

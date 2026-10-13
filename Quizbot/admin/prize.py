@@ -5,7 +5,7 @@ import random
 import aiosqlite
 
 from config import DB_PATH
-from database.db import log_admin_action
+from database.db import log_admin_action, register_lottery_winner
 from bot_instance import bot
 
 # پیش‌فرض تعداد برندگان برای هر دسته
@@ -23,17 +23,14 @@ CATEGORY_NAMES = {
 
 
 async def lottery_top_inviters(count):
-    """N کاربر با بیشترین تعداد دعوت."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT inviter_id FROM invites ORDER BY count DESC LIMIT ?",
-            (count,)
+            "SELECT inviter_id FROM invites ORDER BY count DESC LIMIT ?", (count,)
         )
         return [row[0] for row in await cursor.fetchall()]
 
 
 async def lottery_random_participants(count):
-    """N کاربر تصادفی از بین کسانی که آزمون را کامل کرده‌اند."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
             "SELECT user_id FROM users WHERE state = 'done' ORDER BY RANDOM() LIMIT ?",
@@ -43,17 +40,14 @@ async def lottery_random_participants(count):
 
 
 async def lottery_random_inviters(count):
-    """N کاربر تصادفی از بین کسانی که حداقل یک دعوت داشته‌اند."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT inviter_id FROM invites ORDER BY RANDOM() LIMIT ?",
-            (count,)
+            "SELECT inviter_id FROM invites ORDER BY RANDOM() LIMIT ?", (count,)
         )
         return [row[0] for row in await cursor.fetchall()]
 
 
 async def run_lottery(category, count):
-    """اجرای قرعه‌کشی بر اساس دسته."""
     if category == "top_inviters":
         return await lottery_top_inviters(count)
     elif category == "random_participants":
@@ -64,7 +58,6 @@ async def run_lottery(category, count):
 
 
 async def get_users_info(user_ids):
-    """اطلاعات نمایشی کاربران بر اساس شناسه‌ها."""
     if not user_ids:
         return []
     async with aiosqlite.connect(DB_PATH) as db:
@@ -72,17 +65,16 @@ async def get_users_info(user_ids):
         placeholders = ",".join("?" * len(user_ids))
         cursor = await db.execute(
             f"SELECT user_id, username, display_name, phone FROM users WHERE user_id IN ({placeholders})",
-            tuple(user_ids)
+            tuple(user_ids),
         )
         return [dict(row) async for row in cursor]
 
 
 async def format_winners_list(user_ids, category):
-    """ساخت متن نمایش برندگان."""
     user_info = await get_users_info(user_ids)
     lines = [
         f"🎲 نتیجه قرعه‌کشی — {CATEGORY_NAMES.get(category, category)}",
-        f"تعداد: {len(user_ids)} نفر\n"
+        f"تعداد: {len(user_ids)} نفر\n",
     ]
     for i, row in enumerate(user_info, 1):
         name = row.get("display_name") or row.get("username") or f"کاربر {row['user_id']}"
@@ -93,17 +85,23 @@ async def format_winners_list(user_ids, category):
     return "\n".join(lines)
 
 
-async def send_prize_message(admin_id, user_ids, message):
-    """ارسال پیام جایزه به لیست کاربران."""
-    sent = 0
+async def send_prize_message(admin_id, user_ids, message, category):
+    """ارسال پیام جایزه و ثبت برندگان در دیتابیس."""
+    sent_users = []
     failed = 0
     for uid in user_ids:
         try:
-            await bot.send_message(uid, f"🎁 پیام جایزه\n\n{message}")
-            sent += 1
+            await bot.send_message(uid, message)
+            sent_users.append(uid)
+            # ثبت برنده در دیتابیس
+            await register_lottery_winner(uid, category)
         except Exception as e:
             print(f"[Prize] Failed to send to {uid}: {e}")
             failed += 1
         await asyncio.sleep(0.05)
-    await log_admin_action(admin_id, "prize_message", f"sent: {sent}, failed: {failed}")
-    return sent, failed
+
+    await log_admin_action(
+        admin_id, "prize_message",
+        f"category: {category}, sent: {len(sent_users)}, failed: {failed}"
+    )
+    return len(sent_users), failed

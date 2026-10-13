@@ -21,6 +21,7 @@ from handlers.registration import (
     greet_and_start
 )
 from handlers.states import STATE_AWAIT_PHONE, build_display_name #, STATE_AWAIT_USERNAME
+from handlers.prize_info import handle_winner_info
 
 # Import admin handlers
 from admin.handlers import ADMIN_STATE, admin_callback, admin_message, show_admin_panel
@@ -100,7 +101,13 @@ async def on_message(message):
             print("[DEBUG] Awaiting phone, forwarding.")
             await handle_phone_text(user_id, text)
             return
+                # ---------- جمع‌آوری اطلاعات برندگان قرعه‌کشی ----------
+        if await handle_winner_info(user_id, text):
+            return
 
+        # Any other free‑text message: point the user back to the buttons.
+        print("[DEBUG] No state match, sending fallback.")
+        await bot.send_message(user_id, text=FALLBACK_TEXT)
         # Any other free‑text message: point the user back to the buttons.
         print("[DEBUG] No state match, sending fallback.")
         await bot.send_message(user_id, text=FALLBACK_TEXT)
