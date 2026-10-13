@@ -38,7 +38,6 @@
 | □ | **working tree تمیز است و stash ندارید** | `git status` و `git stash list` هر دو خالی باشند |
 | □ | **main محلی با GitHub همگام است** | `git fetch origin` و بعد `git status main`. remote نباید کامیتی داشته باشد که محلی ندارید. |
 | □ | **اجازهٔ force-push روی main دارید** | اگر در GitHub برای main «Branch protection» فعال است، موقتاً force-push را مجاز کنید. |
-| □ | **پشتیبان سرور گرفته شده** | `keramat.db` و `.env` روی سرور |
 | □ | **همکاران خبر دارند** | هر clone دیگر بعد از این کار باید دوباره clone شود |
 | □ | **فضای کافی کنار مخزن هست** | پوشهٔ پشتیبان در پوشهٔ والد مخزن ساخته می‌شود |
 
@@ -110,9 +109,12 @@ git push --force-with-lease=main:<hash-قبلی-origin/main> origin main
    ```bash
    git log --all --full-history -- .env
    ```
-2. **روی سرور هرگز `git pull` نزنید.** pull تاریخچهٔ قدیم را دوباره ادغام می‌کند. به‌جایش:
+2. **روی سرور هرگز `git pull` نزنید.** pull تاریخچهٔ قدیم را دوباره ادغام می‌کند. این مرحله را هر وقت به سرور وصل شدید انجام دهید. اجرای اسکریپت روی سیستم محلی به سرور دست نمی‌زند.
    ```bash
    cd /home/ubuntu/Telegram-Bale-Bot
+   # اول پشتیبان از دیتابیس واقعی و .env روی سرور
+   cp Quizbot/database/keramat.db ~/keramat.db.$(date +%F).bak
+   cp .env ~/env.$(date +%F).bak
    git fetch origin
    git reset --hard origin/main
    sudo systemctl restart keramat-bot.service
