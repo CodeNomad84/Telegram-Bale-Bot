@@ -83,9 +83,14 @@ async def on_message(message):
 
         # ---------- Admin text handling ----------
         if user_id in ADMIN_IDS and user_id in ADMIN_STATE:
-            print("[DEBUG] Admin state active, forwarding to admin_message.")
-            await admin_message(message)
-            return
+            if text.startswith("/"):
+                # دستورها (مثل /start) عملیات نیمه‌کارهٔ ادمین را لغو می‌کنند و عادی پردازش می‌شوند
+                print("[DEBUG] Command received, clearing admin state.")
+                ADMIN_STATE.pop(user_id, None)
+            else:
+                print("[DEBUG] Admin state active, forwarding to admin_message.")
+                await admin_message(message)
+                return
 
         # ---------- /start ----------
         if text.startswith("/start"):
@@ -133,12 +138,12 @@ async def on_message(message):
 async def on_callback_query(callback_query):
     """Main callback handler with debug logs."""
     try:
-        print(f"[DEBUG] Received callback: {callback_query.data} from {callback_query.author.id}")
         if callback_query.author is None:
-            print("[DEBUG] No author, ignoring.")
+            print("[DEBUG] Callback without author, ignoring.")
             return
         user_id = callback_query.author.id
-        data = callback_query.data
+        data = callback_query.data or ""
+        print(f"[DEBUG] Received callback: {data} from {user_id}")
 
         # ---------- Admin callbacks ----------
         if data.startswith("admin:"):
@@ -231,7 +236,14 @@ async def startup():
     print("[DEBUG] Database initialized.")
     # start_scheduler()
 
-    # تست دسترسی به کانال (اختیاری)
+
+@bot.on_initialize()
+async def check_channel_access():
+    """تست دسترسی به کانال (اختیاری).
+
+    این تابع بعد از connect (هنگام شروع polling) اجرا می‌شود؛
+    در startup قبل از bot.run() اتصال هنوز برقرار نیست و درخواست همیشه شکست می‌خورد.
+    """
     if CHANNEL_ID:
         try:
             chat = await bot.get_chat(CHANNEL_ID)

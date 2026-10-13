@@ -27,7 +27,7 @@ from admin.prize import (
     send_prize_message,
 )
 from admin.logs import get_logs_text
-from utils.decorators import admin_required
+from utils.decorators import admin_message_required, admin_required
 from utils.helpers import safe_answer
 
 # ذخیره‌سازی موقت وضعیت ادمین
@@ -263,7 +263,7 @@ async def _perform_lottery(user_id, category, count):
     await log_admin_action(user_id, "lottery", f"category: {category}, count: {len(winners)}")
 
 
-@admin_required
+@admin_message_required
 async def admin_message(message):
     """پردازش پیام‌های متنی ادمین در حالت‌های ویژه."""
     user_id = message.author.id

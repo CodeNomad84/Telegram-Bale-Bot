@@ -51,6 +51,33 @@ def build_products(product_keys):
     return "🎁 پیشنهاد ما برای تو:\n\n" + "\n\n".join(lines)
 
 
+def result_image_path(code, user):
+    """Gendered image (_female/_male) if it exists, else the base image, else None."""
+    base_image = RESULT_IMAGES.get(code, "")
+    if not base_image:
+        return None
+    role = user.get("role")
+    gender = user.get("gender")
+    gender_suffix = None
+    if role == "single" and gender in ("girl", "female", "boy", "male"):
+        # برای مجردها از جنسیت خودش استفاده کن
+        gender_suffix = "female" if gender in ("girl", "female") else "male"
+    elif role in ("mother", "father"):
+        # برای والدین از نقش استفاده کن
+        gender_suffix = "female" if role == "mother" else "male"
+
+    candidates = []
+    if gender_suffix:
+        name, ext = os.path.splitext(base_image)
+        candidates.append(f"{name}_{gender_suffix}{ext}")
+    candidates.append(base_image)  # fallback به تصویر اصلی
+    for image_name in candidates:
+        path = PICS_DIR / image_name
+        if path.exists():
+            return path
+    return None
+
+
 async def send_result(user_id):
     """Send the result in fixed order: description, image, product suggestion."""
     user = await get_user(user_id)
@@ -67,42 +94,15 @@ async def send_result(user_id):
         state=STATE_DONE,
     )
 
-    # 1) Personality type description
-    # await bot.send_message(user_id, text=build_description(code))
-
-    # 2) Personality type image based on code AND gender (role)
-    base_image = RESULT_IMAGES.get(code, "")
-    if base_image:
-        role = user.get("role")
-        gender = user.get("gender")
-        # تعیین جنسیت برای انتخاب تصویر
-        if role == "single" and gender in ("girl", "female", "boy", "male"):
-            # برای مجردها از جنسیت خودش استفاده کن
-            gender_suffix = "female" if gender in ("girl", "female") else "male"
-            name, ext = os.path.splitext(base_image)
-            image_name = f"{name}_{gender_suffix}{ext}"
-        elif role in ("mother", "father"):
-            # برای والدین از نقش استفاده کن
-            gender_suffix = "female" if role == "mother" else "male"
-            name, ext = os.path.splitext(base_image)
-            image_name = f"{name}_{gender_suffix}{ext}"
-        else:
-            image_name = base_image
-
-    image_path = PICS_DIR / image_name if image_name else None
-    if image_path and image_path.exists():
+    # 1+2) Personality type image with the description as caption;
+    # without an image the description is still sent as plain text.
+    description = build_description(code)
+    image_path = result_image_path(code, user)
+    if image_path:
         with open(image_path, "rb") as photo:
-            # caption = f"{result.get('title', '')}\n\n{result.get('description', '')}"
-            caption = build_description(code)
-            await bot.send_photo(user_id, photo=photo, caption=caption)
+            await bot.send_photo(user_id, photo=photo, caption=description)
     else:
-        # fallback به تصویر اصلی
-        image_path = PICS_DIR / base_image if base_image else None
-        if image_path and image_path.exists():
-            with open(image_path, "rb") as photo:
-                # caption = f"{result.get('title', '')}\n\n{result.get('description', '')}"
-                caption = build_description(code)
-                await bot.send_photo(user_id, photo=photo, caption=caption)
+        await bot.send_message(user_id, text=description)
 
     # 3) Product suggestion
     products_text = build_products(user["product_keys"])
