@@ -2,6 +2,7 @@
 
 import asyncio
 import traceback
+from collections import defaultdict
 from scheduler import start_scheduler
 
 from bot_instance import bot
@@ -38,6 +39,10 @@ from admin.handlers import ADMIN_STATE, admin_callback, admin_message, show_admi
 # Inviter ids held between /start and a confirmed channel membership.
 PENDING_INVITER = {}
 
+# balethon چند update را موازی پردازش می‌کند؛ این lock جلوی ثبت دوبارهٔ
+# یک پاسخ را می‌گیرد وقتی کاربر سریع دو بار روی دکمه می‌زند.
+ANSWER_LOCKS = defaultdict(asyncio.Lock)
+
 
 def parse_start_payload(text):
     """Extract the inviter id from "/start <user_id>", if present."""
@@ -67,8 +72,8 @@ async def on_message(message):
         print(f"[DEBUG] user_id={user_id}, text='{text}'")
 
         # Ensure user exists
-        await ensure_user(user_id, build_display_name(message.author))
-        print("[DEBUG] ensure_user done.")
+        is_new_user = await ensure_user(user_id, build_display_name(message.author))
+        print(f"[DEBUG] ensure_user done (new={is_new_user}).")
 
         # ---------- Admin command ----------
         if text == "/admin":
@@ -96,9 +101,12 @@ async def on_message(message):
         if text.startswith("/start"):
             print("[DEBUG] /start command received.")
             inviter_id = parse_start_payload(text)
-            if inviter_id and inviter_id != user_id:
+            # دعوت فقط برای کاربری حساب می‌شود که اولین بار است وارد ربات می‌شود
+            if inviter_id and inviter_id != user_id and is_new_user:
                 PENDING_INVITER[user_id] = inviter_id
                 print(f"[DEBUG] Pending inviter set: {inviter_id}")
+            elif inviter_id:
+                print(f"[DEBUG] Invite from {inviter_id} ignored (existing user).")
             await reset_quiz(user_id)
             await send_welcome_gate(user_id)
             print("[DEBUG] Welcome gate sent.")
@@ -201,23 +209,24 @@ async def on_callback_query(callback_query):
                 await safe_answer(callback_query, "دادهٔ نامعتبر")
                 return
 
-            # فقط دکمه‌های سؤال جاری پذیرفته می‌شوند (نه پیام‌های قدیمی)
-            expected_state = STATE_INTRO if kind == "intro" else STATE_QUIZ
-            user = await get_user(user_id)
-            if not can_answer(user, expected_state, index):
-                await safe_answer(callback_query, STALE_ANSWER_TEXT)
-                return
-            # کاربری که از کانال خارج شده نمی‌تواند ادامه دهد
-            if not await is_member(user_id):
-                await safe_answer(callback_query, NOT_JOINED_TEXT, show_alert=True)
-                return
+            async with ANSWER_LOCKS[user_id]:
+                # فقط دکمه‌های سؤال جاری پذیرفته می‌شوند (نه پیام‌های قدیمی)
+                expected_state = STATE_INTRO if kind == "intro" else STATE_QUIZ
+                user = await get_user(user_id)
+                if not can_answer(user, expected_state, index):
+                    await safe_answer(callback_query, STALE_ANSWER_TEXT)
+                    return
+                # کاربری که از کانال خارج شده نمی‌تواند ادامه دهد
+                if not await is_member(user_id):
+                    await safe_answer(callback_query, NOT_JOINED_TEXT, show_alert=True)
+                    return
 
-            # پاسخ اولیه (نوتیفیکیشن)
-            await safe_answer(callback_query, "در حال ثبت پاسخ...")
+                # پاسخ اولیه (نوتیفیکیشن)
+                await safe_answer(callback_query, "در حال ثبت پاسخ...")
 
-            # پردازش پاسخ (handler دوباره state را چک می‌کند)
-            handler = handle_intro_answer if kind == "intro" else handle_quiz_answer
-            await handler(user_id, index, option_index)
+                # پردازش پاسخ (handler دوباره state را چک می‌کند)
+                handler = handle_intro_answer if kind == "intro" else handle_quiz_answer
+                await handler(user_id, index, option_index)
             return
 
         # Fallback: پاسخ به هر callback ناشناخته
@@ -257,6 +266,11 @@ async def check_channel_access():
 
 if __name__ == "__main__":
     print("[DEBUG] Starting bot...")
-    asyncio.get_event_loop().run_until_complete(startup())
+    # balethon همهٔ متدها و workerهایش را به loopی که هنگام ساخت Client گرفته می‌بندد.
+    # asyncio.run() آن loop را می‌بست و ربات از کار می‌افتاد؛ new_event_loop() هم loop
+    # جداگانه‌ای می‌ساخت. پس همان loop را صریحاً به‌عنوان loop جاری تنظیم می‌کنیم.
+    loop = bot.dispatcher.event_loop
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(startup())
     print("[DEBUG] Running bot...")
     bot.run()

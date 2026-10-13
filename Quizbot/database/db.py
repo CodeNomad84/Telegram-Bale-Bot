@@ -66,18 +66,28 @@ async def init_db():
 
 
 async def ensure_user(user_id, display_name=None):
-    """کاربر را می‌سازد یا نام نمایشی گرفته‌شده از بله را به‌روز می‌کند."""
+    """کاربر را می‌سازد یا نام نمایشی گرفته‌شده از بله را به‌روز می‌کند.
+
+    خروجی: True اگر کاربر همین الان ساخته شد (کاربر جدید)، وگرنه False.
+    """
     now = _now()
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT INTO users (user_id, display_name, created_at, updated_at)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(user_id) DO UPDATE SET
-                   display_name = COALESCE(NULLIF(excluded.display_name, ''), users.display_name),
-                   updated_at   = excluded.updated_at""",
+        cursor = await db.execute(
+            """INSERT OR IGNORE INTO users (user_id, display_name, created_at, updated_at)
+               VALUES (?, ?, ?, ?)""",
             (user_id, display_name or "", now, now),
         )
+        created = cursor.rowcount == 1
+        if not created:
+            await db.execute(
+                """UPDATE users SET
+                       display_name = COALESCE(NULLIF(?, ''), display_name),
+                       updated_at   = ?
+                   WHERE user_id = ?""",
+                (display_name or "", now, user_id),
+            )
         await db.commit()
+    return created
 
 
 async def get_user(user_id):
@@ -129,6 +139,12 @@ async def register_invite(inviter_id, invited_id):
     if inviter_id == invited_id:
         return False
     async with aiosqlite.connect(DB_PATH) as db:
+        # معرف باید کاربر واقعی ربات باشد (لینک ساختگی با شناسهٔ دلخواه شمرده نمی‌شود)
+        async with db.execute(
+            "SELECT 1 FROM users WHERE user_id = ?", (inviter_id,)
+        ) as cursor:
+            if not await cursor.fetchone():
+                return False
         async with db.execute(
             "SELECT 1 FROM invited_users WHERE invited_id = ?", (invited_id,)
         ) as cursor:

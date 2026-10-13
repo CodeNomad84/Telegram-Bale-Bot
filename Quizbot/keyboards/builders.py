@@ -117,3 +117,11 @@ def prize_category_keyboard():
         [{"text": "🎁 دعوت‌کنندگان تصادفی", "callback_data": "admin:prize_cat:random_inviters"}],
         [{"text": "❌ لغو", "callback_data": "admin:cancel"}],
     )
+
+
+def prize_confirm_keyboard():
+    """تأیید لیست برندگان قرعه‌کشی خودکار قبل از نوشتن پیام جایزه."""
+    return InlineKeyboard(
+        [{"text": "✅ تأیید برندگان و ادامه", "callback_data": "admin:prize_confirm"}],
+        [{"text": "❌ لغو", "callback_data": "admin:cancel"}],
+    )

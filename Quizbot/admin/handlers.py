@@ -13,6 +13,7 @@ from keyboards.builders import (
     lottery_type_keyboard,
     lottery_count_keyboard,
     prize_category_keyboard,
+    prize_confirm_keyboard,
 )
 
 from admin.stats import get_stats_text
@@ -210,7 +211,7 @@ async def admin_callback(callback_query):
                 reply_markup=admin_cancel_keyboard()
             )
         else:
-            # اگر قرعه‌کشی قبلی نبود، با مقدار پیش‌فرض اجرا کن
+            # اگر قرعه‌کشی قبلی نبود، با مقدار پیش‌فرض اجرا کن و قبل از ادامه تأیید بگیر
             default_count = DEFAULT_COUNTS.get(category, 5)
             winners = await run_lottery(category, default_count)
             if not winners:
@@ -218,17 +219,38 @@ async def admin_callback(callback_query):
                 ADMIN_STATE.pop(user_id, None)
                 return
             ADMIN_STATE[user_id] = {
-                "action": "prize_message_text",
+                "action": "prize_confirm_winners",
                 "category": category,
                 "winners": winners,
             }
+            text = await format_winners_list(winners, category)
             await bot.send_message(
                 user_id,
-                f"👥 {len(winners)} نفر به‌صورت خودکار انتخاب شدند "
-                f"(قرعه‌کشی با پیش‌فرض).\n\n"
-                f"📝 لطفاً پیام جایزه را بنویسید:",
-                reply_markup=admin_cancel_keyboard()
+                "ℹ️ قرعه‌کشی قبلی برای این دسته وجود نداشت؛ "
+                "قرعه‌کشی با تعداد پیش‌فرض انجام شد.\n\n"
+                f"{text}\n\n"
+                "آیا پیام جایزه برای این افراد ارسال شود؟",
+                reply_markup=prize_confirm_keyboard()
             )
+        return
+
+    # ---------- ارسال پیام جایزه: تأیید برندگان قرعه‌کشی خودکار ----------
+    if data == "admin:prize_confirm":
+        state = ADMIN_STATE.get(user_id)
+        if not state or state.get("action") != "prize_confirm_winners":
+            await safe_answer(callback_query, "لیستی برای تأیید وجود ندارد.")
+            return
+        await safe_answer(callback_query, "")
+        state["action"] = "prize_message_text"
+        await log_admin_action(
+            user_id, "lottery", f"category: {state['category']}, count: {len(state['winners'])} (auto)"
+        )
+        await bot.send_message(
+            user_id,
+            f"👥 برندگان تأییدشده: {len(state['winners'])} نفر\n\n"
+            f"📝 لطفاً پیام جایزه را بنویسید:",
+            reply_markup=admin_cancel_keyboard()
+        )
         return
 
     # ---------- لاگ‌ها ----------
@@ -340,4 +362,6 @@ async def admin_message(message):
             reply_markup=admin_back_keyboard()
         )
         ADMIN_STATE.pop(user_id, None)
+        # نتیجهٔ این قرعه‌کشی مصرف شد؛ پاک می‌شود تا پیام جایزه دوباره برای همان افراد ارسال نشود
+        ADMIN_LOTTERY_RESULTS.get(user_id, {}).pop(category, None)
         return
