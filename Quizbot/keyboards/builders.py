@@ -83,11 +83,20 @@ def admin_cancel_keyboard():
 
 # ---------- Prize Menu Keyboards ----------
 def prize_menu_keyboard():
-    """منوی اصلی جوایز: دو گزینه قرعه‌کشی و ارسال پیام."""
+    """منوی اصلی جوایز: قرعه‌کشی، ارسال پیام و دریافت مشخصات برندگان."""
     return InlineKeyboard(
         [{"text": "🎲 قرعه‌کشی", "callback_data": "admin:lottery"}],
         [{"text": "📨 ارسال پیام جایزه", "callback_data": "admin:prize_message"}],
+        [{"text": "📋 مشخصات برندگان", "callback_data": "admin:winners_export"}],
         [{"text": "🔙 بازگشت", "callback_data": "admin:main"}],
+    )
+
+
+def winners_export_keyboard():
+    """زیر فایل مشخصات برندگان: بازگشت به منوی جوایز."""
+    return InlineKeyboard(
+        [{"text": "🔄 دریافت دوباره", "callback_data": "admin:winners_export"}],
+        [{"text": "🔙 بازگشت به منوی جوایز", "callback_data": "admin:prize"}],
     )
 
 

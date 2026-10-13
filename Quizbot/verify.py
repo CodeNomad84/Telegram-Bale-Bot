@@ -60,7 +60,7 @@ if not all(ok for _, ok in RESULTS):
 import main  # noqa: E402
 import handlers.membership as membership  # noqa: E402
 from admin import handlers as admin_handlers  # noqa: E402
-from admin.export import export_users_excel  # noqa: E402
+from admin.export import export_users_excel, export_winners_excel  # noqa: E402
 from admin.graph import generate_graph  # noqa: E402
 from admin.logs import get_logs_text  # noqa: E402
 from admin.prize import format_winners_list, lottery_top_inviters  # noqa: E402
@@ -387,6 +387,20 @@ async def test_admin():
     wb = load_workbook(path, read_only=True)
     check("export has 3 sheets", wb.sheetnames == ["Users", "Inviters", "Lottery_Winners"], str(wb.sheetnames))
     wb.close()
+    path, total, submitted = await export_winners_excel()
+    wb = load_workbook(path)
+    ws = wb.active
+    rows = list(ws.iter_rows(min_row=2, values_only=True))
+    check("winners export: RTL sheet with all winners", ws.sheet_view.rightToLeft and len(rows) == total)
+    check("winners export: submitted rows first", all(r[7] for r in rows[:submitted])
+          and not any(r[7] for r in rows[submitted:]))
+    check("winners export: info text present", any(r[7] == "My address" for r in rows))
+    wb.close()
+    SENT.clear()
+    cq = await tap(admin_id, "admin:winners_export")
+    docs = sent_to(admin_id, "document")
+    check("admin:winners_export sends one document", len(cq.answers) == 1 and len(docs) == 1
+          and "مشخصات برندگان" in docs[0][2])
     check("stats text", "کل کاربران" in await get_stats_text())
     check("logs text", "لاگ" in await get_logs_text())
     check("graph image generated", Path(await generate_graph()).exists())

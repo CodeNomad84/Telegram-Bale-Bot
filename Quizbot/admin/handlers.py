@@ -14,11 +14,12 @@ from keyboards.builders import (
     lottery_count_keyboard,
     prize_category_keyboard,
     prize_confirm_keyboard,
+    winners_export_keyboard,
 )
 
 from admin.stats import get_stats_text
 from admin.broadcast import broadcast_send
-from admin.export import export_users_excel
+from admin.export import export_users_excel, export_winners_excel
 from admin.graph import generate_graph
 from admin.prize import (
     DEFAULT_COUNTS,
@@ -29,7 +30,7 @@ from admin.prize import (
 )
 from admin.logs import get_logs_text
 from utils.decorators import admin_message_required, admin_required
-from utils.helpers import safe_answer
+from utils.helpers import safe_answer, to_persian_digits
 
 # ذخیره‌سازی موقت وضعیت ادمین
 ADMIN_STATE = {}
@@ -137,6 +138,34 @@ async def admin_callback(callback_query):
     if data == "admin:prize":
         await safe_answer(callback_query, "")
         await _show_prize_menu(user_id)
+        return
+
+    # ---------- مشخصات برندگان (اکسل) ----------
+    if data == "admin:winners_export":
+        await safe_answer(callback_query, "در حال آماده‌سازی فایل...")
+        file_path, total, submitted = await export_winners_excel()
+        if not file_path:
+            await bot.send_message(
+                user_id,
+                "📭 هنوز برنده‌ای ثبت نشده است.\n\n"
+                "برندگان پس از «ارسال پیام جایزه» در این بخش نمایش داده می‌شوند.",
+                reply_markup=prize_menu_keyboard()
+            )
+            return
+        with open(file_path, "rb") as f:
+            await bot.send_document(
+                user_id,
+                document=f,
+                caption=(
+                    "📋 مشخصات برندگان\n\n"
+                    f"👥 کل برندگان: {to_persian_digits(total)} نفر\n"
+                    f"✅ مشخصات ثبت‌شده: {to_persian_digits(submitted)} نفر\n"
+                    f"⏳ در انتظار ارسال: {to_persian_digits(total - submitted)} نفر\n\n"
+                    "ℹ️ ردیف‌های زرد یعنی برنده هنوز مشخصاتش را نفرستاده است."
+                ),
+                reply_markup=winners_export_keyboard()
+            )
+        await log_admin_action(user_id, "export_winners", f"total: {total}, submitted: {submitted}")
         return
 
     # ---------- قرعه‌کشی: انتخاب نوع ----------
