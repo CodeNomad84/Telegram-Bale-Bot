@@ -28,6 +28,7 @@ from admin.prize import (
 )
 from admin.logs import get_logs_text
 from utils.decorators import admin_required
+from utils.helpers import safe_answer
 
 # ذخیره‌سازی موقت وضعیت ادمین
 ADMIN_STATE = {}
@@ -59,26 +60,26 @@ async def admin_callback(callback_query):
 
     # ---------- اصلی ----------
     if data == "admin:main":
+        await safe_answer(callback_query, "")
         await show_admin_panel(user_id)
-        await callback_query.answer("")
         return
 
     if data == "admin:cancel":
         ADMIN_STATE.pop(user_id, None)
-        await callback_query.answer("عملیات لغو شد.")
+        await safe_answer(callback_query, "عملیات لغو شد.")
         await show_admin_panel(user_id)
         return
 
     # ---------- آمار ----------
     if data == "admin:stats":
+        await safe_answer(callback_query, "")
         text = await get_stats_text()
         await bot.send_message(user_id, text, reply_markup=admin_back_keyboard())
-        await callback_query.answer("")
         return
 
     # ---------- ارسال پیام همگانی ----------
     if data == "admin:broadcast":
-        await callback_query.answer("لطفاً پیام خود را ارسال کنید.")
+        await safe_answer(callback_query, "لطفاً پیام خود را ارسال کنید.")
         ADMIN_STATE[user_id] = {"action": "broadcast"}
         await bot.send_message(
             user_id,
@@ -90,13 +91,13 @@ async def admin_callback(callback_query):
     if data == "admin:broadcast_confirm":
         state = ADMIN_STATE.get(user_id)
         if not state or state.get("action") != "broadcast":
-            await callback_query.answer("هیچ پیامی برای تأیید وجود ندارد.")
+            await safe_answer(callback_query, "هیچ پیامی برای تأیید وجود ندارد.")
             return
         text = state.get("broadcast_text")
         if not text:
-            await callback_query.answer("متن پیام خالی است.")
+            await safe_answer(callback_query, "متن پیام خالی است.")
             return
-        await callback_query.answer("در حال ارسال...")
+        await safe_answer(callback_query, "در حال ارسال...")
         sent, failed = await broadcast_send(user_id, text)
         await bot.send_message(
             user_id,
@@ -108,7 +109,7 @@ async def admin_callback(callback_query):
 
     # ---------- خروجی اکسل ----------
     if data == "admin:export":
-        await callback_query.answer("در حال تولید فایل اکسل...")
+        await safe_answer(callback_query, "در حال تولید فایل اکسل...")
         file_path = await export_users_excel()
         with open(file_path, "rb") as f:
             await bot.send_document(
@@ -121,7 +122,7 @@ async def admin_callback(callback_query):
 
     # ---------- نمودار ----------
     if data == "admin:graph":
-        await callback_query.answer("در حال تولید نمودار...")
+        await safe_answer(callback_query, "در حال تولید نمودار...")
         img_path = await generate_graph()
         with open(img_path, "rb") as f:
             await bot.send_photo(
@@ -133,13 +134,13 @@ async def admin_callback(callback_query):
 
     # ---------- منوی جوایز ----------
     if data == "admin:prize":
-        await callback_query.answer("")
+        await safe_answer(callback_query, "")
         await _show_prize_menu(user_id)
         return
 
     # ---------- قرعه‌کشی: انتخاب نوع ----------
     if data == "admin:lottery":
-        await callback_query.answer("")
+        await safe_answer(callback_query, "")
         await bot.send_message(
             user_id,
             "🎲 نوع قرعه‌کشی را انتخاب کنید:",
@@ -149,7 +150,7 @@ async def admin_callback(callback_query):
 
     # ---------- قرعه‌کشی: انتخاب دسته ----------
     if data.startswith("admin:lottery:"):
-        await callback_query.answer("")
+        await safe_answer(callback_query, "")
         category = data.split(":")[2]
         default_count = DEFAULT_COUNTS.get(category, 5)
         ADMIN_STATE[user_id] = {
@@ -170,9 +171,9 @@ async def admin_callback(callback_query):
     if data == "admin:lottery_use_default":
         state = ADMIN_STATE.get(user_id)
         if not state or state.get("action") != "lottery_count":
-            await callback_query.answer("ابتدا یک دسته انتخاب کنید.")
+            await safe_answer(callback_query, "ابتدا یک دسته انتخاب کنید.")
             return
-        await callback_query.answer("در حال اجرای قرعه‌کشی...")
+        await safe_answer(callback_query, "در حال اجرای قرعه‌کشی...")
         category = state["category"]
         count = state["default_count"]
         await _perform_lottery(user_id, category, count)
@@ -180,7 +181,7 @@ async def admin_callback(callback_query):
 
     # ---------- ارسال پیام جایزه: انتخاب دسته ----------
     if data == "admin:prize_message":
-        await callback_query.answer("")
+        await safe_answer(callback_query, "")
         await bot.send_message(
             user_id,
             "📨 پیام جایزه برای کدام دسته ارسال شود؟",
@@ -190,7 +191,7 @@ async def admin_callback(callback_query):
 
     # ---------- ارسال پیام جایزه: دریافت دسته ----------
     if data.startswith("admin:prize_cat:"):
-        await callback_query.answer("")
+        await safe_answer(callback_query, "")
         category = data.split(":")[2]
         # بررسی وجود نتیجه قرعه‌کشی قبلی برای این دسته
         admin_results = ADMIN_LOTTERY_RESULTS.get(user_id, {})
@@ -232,12 +233,12 @@ async def admin_callback(callback_query):
 
     # ---------- لاگ‌ها ----------
     if data == "admin:logs":
+        await safe_answer(callback_query, "")
         text = await get_logs_text()
         await bot.send_message(user_id, text, reply_markup=admin_back_keyboard())
-        await callback_query.answer("")
         return
 
-    await callback_query.answer("دستور ناشناخته")
+    await safe_answer(callback_query, "دستور ناشناخته")
 
 
 async def _perform_lottery(user_id, category, count):

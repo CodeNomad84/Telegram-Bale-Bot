@@ -37,6 +37,11 @@ def build_display_name(author):
     return f"@{username}" if username else ""
 
 
+def can_answer(user, state, index):
+    """True only if the tapped button belongs to the user's current question (rejects old messages)."""
+    return user is not None and user["state"] == state and user["step"] == index
+
+
 def address_of(user):
     """Name used in the welcome message: username, then display name, then fallback."""
     if not user:

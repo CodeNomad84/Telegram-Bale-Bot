@@ -20,8 +20,17 @@ from handlers.registration import (
     # skip_username,
     greet_and_start
 )
-from handlers.states import STATE_AWAIT_PHONE, build_display_name #, STATE_AWAIT_USERNAME
+from handlers.states import (
+    STATE_AWAIT_PHONE,
+    STATE_INTRO,
+    STATE_QUIZ,
+    build_display_name,
+    can_answer,
+)  # , STATE_AWAIT_USERNAME
 from handlers.prize_info import handle_winner_info
+from utils.helpers import safe_answer
+
+STALE_ANSWER_TEXT = "این سؤال دیگر فعال نیست؛ لطفاً به آخرین سؤال پاسخ بده."
 
 # Import admin handlers
 from admin.handlers import ADMIN_STATE, admin_callback, admin_message, show_admin_panel
@@ -108,9 +117,6 @@ async def on_message(message):
         # Any other free‑text message: point the user back to the buttons.
         print("[DEBUG] No state match, sending fallback.")
         await bot.send_message(user_id, text=FALLBACK_TEXT)
-        # Any other free‑text message: point the user back to the buttons.
-        print("[DEBUG] No state match, sending fallback.")
-        await bot.send_message(user_id, text=FALLBACK_TEXT)
 
     except Exception as e:
         print(f"[ERROR] in on_message: {e}")
@@ -137,8 +143,7 @@ async def on_callback_query(callback_query):
         # ---------- Admin callbacks ----------
         if data.startswith("admin:"):
             print("[DEBUG] Admin callback.")
-            # پاسخ سریع با متن خالی (اجباری)
-            await callback_query.answer("")
+            # admin_callback خودش دقیقاً یک بار answer می‌کند
             await admin_callback(callback_query)
             return
 
@@ -146,11 +151,11 @@ async def on_callback_query(callback_query):
         if data == "check_join":
             print("[DEBUG] check_join callback.")
             if not await is_member(user_id):
-                await callback_query.answer(NOT_JOINED_TEXT, show_alert=True)
+                await safe_answer(callback_query, NOT_JOINED_TEXT, show_alert=True)
                 print("[DEBUG] Not member.")
                 return
             # عضو است
-            await callback_query.answer("عضویتت تأیید شد ✅")
+            await safe_answer(callback_query, "عضویتت تأیید شد ✅")
             inviter_id = PENDING_INVITER.pop(user_id, None)
             if inviter_id:
                 await register_invite(inviter_id, user_id)
@@ -169,14 +174,14 @@ async def on_callback_query(callback_query):
         # ---------- Skip phone ----------
         if data == "phone:skip":
             print("[DEBUG] Skip phone.")
-            await callback_query.answer("شماره تماس ذخیره نشد")
+            await safe_answer(callback_query, "شماره تماس ذخیره نشد")
             await skip_phone(user_id)
             return
 
         # ---------- Restart ----------
         if data == "restart":
             print("[DEBUG] Restart.")
-            await callback_query.answer("از نو شروع می‌کنیم 🔄")
+            await safe_answer(callback_query, "از نو شروع می‌کنیم 🔄")
             await reset_quiz(user_id)
             await send_welcome_gate(user_id)
             return
@@ -188,29 +193,36 @@ async def on_callback_query(callback_query):
                 kind, index, option_index = data.split(":")
                 index, option_index = int(index), int(option_index)
             except ValueError:
-                await callback_query.answer("دادهٔ نامعتبر")
+                await safe_answer(callback_query, "دادهٔ نامعتبر")
+                return
+
+            # فقط دکمه‌های سؤال جاری پذیرفته می‌شوند (نه پیام‌های قدیمی)
+            expected_state = STATE_INTRO if kind == "intro" else STATE_QUIZ
+            user = await get_user(user_id)
+            if not can_answer(user, expected_state, index):
+                await safe_answer(callback_query, STALE_ANSWER_TEXT)
+                return
+            # کاربری که از کانال خارج شده نمی‌تواند ادامه دهد
+            if not await is_member(user_id):
+                await safe_answer(callback_query, NOT_JOINED_TEXT, show_alert=True)
                 return
 
             # پاسخ اولیه (نوتیفیکیشن)
-            await callback_query.answer("در حال ثبت پاسخ...")
+            await safe_answer(callback_query, "در حال ثبت پاسخ...")
 
-            # پردازش پاسخ (بدون ارسال پیام تأیید در اینجا)
+            # پردازش پاسخ (handler دوباره state را چک می‌کند)
             handler = handle_intro_answer if kind == "intro" else handle_quiz_answer
             await handler(user_id, index, option_index)
-            # دیگر پیام "✅ پاسخ شما ثبت شد." اینجا ارسال نمی‌شود
             return
 
         # Fallback: پاسخ به هر callback ناشناخته
         print("[DEBUG] Unknown callback, answering.")
-        await callback_query.answer("")
+        await safe_answer(callback_query, "")
 
     except Exception as e:
         print(f"[ERROR] in on_callback_query: {e}")
         traceback.print_exc()
-        try:
-            await callback_query.answer("خطا در پردازش درخواست", show_alert=True)
-        except:
-            pass
+        await safe_answer(callback_query, "خطا در پردازش درخواست", show_alert=True)
 
 
 async def startup():

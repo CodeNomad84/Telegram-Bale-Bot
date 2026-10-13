@@ -5,7 +5,7 @@ import asyncio
 from bot_instance import bot
 from data.content import QUESTIONS
 from database.db import get_user, update_user
-from handlers.states import STATE_QUIZ
+from handlers.states import STATE_QUIZ, can_answer
 from keyboards.builders import choice_keyboard
 from utils.helpers import to_persian_digits
 
@@ -35,7 +35,8 @@ async def send_question(user_id, index):
 async def handle_quiz_answer(user_id, index, option_index):
     """Record one answer. Out-of-turn taps (old messages) are rejected."""
     user = await get_user(user_id)
-    if user is None or index != user["step"]:
+    # علاوه بر step، state هم باید quiz باشد؛ وگرنه بعد از /start دکمهٔ قدیمی سؤال ۱ پذیرفته می‌شد
+    if not can_answer(user, STATE_QUIZ, index) or index >= len(QUESTIONS):
         return False
     options = QUESTIONS[index]["options"]
     if not 0 <= option_index < len(options):

@@ -5,7 +5,7 @@ import asyncio
 from bot_instance import bot
 from data.content import INTRO, INTRO_ORDER
 from database.db import get_user, update_user
-from handlers.states import STATE_INTRO
+from handlers.states import STATE_INTRO, can_answer
 from keyboards.builders import choice_keyboard
 
 LABELS = ["الف", "ب", "ج", "د", "ه"]
@@ -32,13 +32,18 @@ async def send_intro_question(user_id, index):
 
 async def handle_intro_answer(user_id, index, option_index):
     """Intro answers only build the context; they never contribute quiz scores."""
+    if not 0 <= index < len(INTRO_ORDER):
+        return False
+    # دکمه‌های پیام‌های قدیمی (بعد از شروع آزمون یا پایان آن) پذیرفته نمی‌شوند
+    user = await get_user(user_id)
+    if not can_answer(user, STATE_INTRO, index):
+        return False
     key = INTRO_ORDER[index]
     options = INTRO[key]["options"]
     if not 0 <= option_index < len(options):
         return False
     option = options[option_index]
 
-    user = await get_user(user_id)
     product_keys = list(user["product_keys"])
     if option["product_key"] and option["product_key"] not in product_keys:
         product_keys.append(option["product_key"])

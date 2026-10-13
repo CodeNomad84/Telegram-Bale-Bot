@@ -1,6 +1,7 @@
 from functools import wraps
 from config import ADMIN_IDS
 from bot_instance import bot
+from utils.helpers import safe_answer
 
 
 def admin_required(func):
@@ -8,7 +9,7 @@ def admin_required(func):
     async def wrapper(callback_query, *args, **kwargs):
         user_id = callback_query.author.id
         if user_id not in ADMIN_IDS:
-            await callback_query.answer("⛔ شما دسترسی ادمین ندارید.", show_alert=True)
+            await safe_answer(callback_query, "⛔ شما دسترسی ادمین ندارید.", show_alert=True)
             return
         return await func(callback_query, *args, **kwargs)
     return wrapper

@@ -58,16 +58,21 @@ async def run_lottery(category, count):
 
 
 async def get_users_info(user_ids):
+    """اطلاعات کاربران به‌همراه تعداد دعوت؛ خروجی dict با کلید user_id (ترتیب ندارد)."""
     if not user_ids:
-        return []
+        return {}
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         placeholders = ",".join("?" * len(user_ids))
         cursor = await db.execute(
-            f"SELECT user_id, username, display_name, phone FROM users WHERE user_id IN ({placeholders})",
+            f"""SELECT u.user_id, u.username, u.display_name, u.phone,
+                       COALESCE(i.count, 0) AS invite_count
+                FROM users u
+                LEFT JOIN invites i ON i.inviter_id = u.user_id
+                WHERE u.user_id IN ({placeholders})""",
             tuple(user_ids),
         )
-        return [dict(row) async for row in cursor]
+        return {row["user_id"]: dict(row) async for row in cursor}
 
 
 async def format_winners_list(user_ids, category):
@@ -76,9 +81,11 @@ async def format_winners_list(user_ids, category):
         f"🎲 نتیجه قرعه‌کشی — {CATEGORY_NAMES.get(category, category)}",
         f"تعداد: {len(user_ids)} نفر\n",
     ]
-    for i, row in enumerate(user_info, 1):
-        name = row.get("display_name") or row.get("username") or f"کاربر {row['user_id']}"
-        line = f"{i}. {name}"
+    # پیمایش به ترتیب user_ids تا رتبه‌بندی قرعه‌کشی (مثلاً بیشترین دعوت) حفظ شود
+    for i, uid in enumerate(user_ids, 1):
+        row = user_info.get(uid, {})
+        name = row.get("display_name") or row.get("username") or f"کاربر {uid}"
+        line = f"{i}. {name} — 📨 {row.get('invite_count', 0)} دعوت"
         if row.get("phone"):
             line += f" — 📞 {row['phone']}"
         lines.append(line)
